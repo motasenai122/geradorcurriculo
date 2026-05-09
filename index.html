@@ -1,0 +1,980 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gerador de Currículo PDF</title>
+    <!-- jsPDF and html2canvas -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <!-- Fonts and Icons -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=Merriweather:wght@300;400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        :root {
+            /* Application UI Colors */
+            --primary: #2563eb;
+            --bg: #f8fafc;
+            --surface: #ffffff;
+            --text-main: #1e293b;
+            --text-muted: #64748b;
+            --border: #e2e8f0;
+            --danger: #ef4444;
+            --success: #10b981;
+            
+            /* CV Template Variables (Default: Modern) */
+            --cv-primary: #0f172a;
+            --cv-secondary: #3b82f6;
+            --cv-text: #334155;
+            --cv-bg: #ffffff;
+            --cv-font: 'Inter', sans-serif;
+        }
+
+        .theme-classic {
+            /* Classic Template Overrides */
+            --cv-primary: #1a1a1a;
+            --cv-secondary: #4a4a4a;
+            --cv-text: #2d2d2d;
+            --cv-bg: #ffffff;
+            --cv-font: 'Merriweather', serif;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg);
+            color: var(--text-main);
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* App Header */
+        .app-header {
+            background: var(--surface);
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--border);
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+            z-index: 10;
+        }
+
+        .app-header h1 {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: var(--primary);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .actions {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+        }
+
+        .theme-selector {
+            display: flex;
+            background: var(--bg);
+            border-radius: 0.5rem;
+            padding: 0.25rem;
+            border: 1px solid var(--border);
+        }
+
+        .theme-btn {
+            padding: 0.5rem 1rem;
+            border: none;
+            background: transparent;
+            cursor: pointer;
+            border-radius: 0.25rem;
+            font-weight: 600;
+            font-size: 0.875rem;
+            color: var(--text-muted);
+            transition: all 0.2s;
+        }
+
+        .theme-btn.active {
+            background: var(--surface);
+            color: var(--primary);
+            box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 0.5rem 1.25rem;
+            border-radius: 0.5rem;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            transition: background 0.2s;
+        }
+        
+        .btn-primary:hover { background: #1d4ed8; }
+
+        /* Main Layout */
+        .main-content {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+        }
+
+        /* Form Area */
+        .form-area {
+            flex: 1;
+            overflow-y: auto;
+            padding: 2rem;
+            background: var(--surface);
+            border-right: 1px solid var(--border);
+        }
+
+        .form-section {
+            margin-bottom: 2.5rem;
+            background: var(--bg);
+            padding: 1.5rem;
+            border-radius: 1rem;
+            border: 1px solid var(--border);
+        }
+
+        .form-section h2 {
+            font-size: 1.125rem;
+            margin-bottom: 1.25rem;
+            color: var(--primary);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .form-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+        }
+        
+        .full-width { grid-column: 1 / -1; }
+
+        .input-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        label {
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: var(--text-main);
+        }
+
+        input, textarea {
+            padding: 0.75rem;
+            border: 1px solid var(--border);
+            border-radius: 0.5rem;
+            font-family: inherit;
+            font-size: 0.875rem;
+            transition: all 0.2s;
+            background: var(--surface);
+            width: 100%;
+        }
+
+        input:focus, textarea:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+        }
+
+        /* Validation Feedback */
+        input:invalid:not(:focus):not(:placeholder-shown) {
+            border-color: var(--danger);
+            animation: shake 0.4s;
+        }
+
+        textarea { resize: vertical; min-height: 100px; }
+
+        .dynamic-list { display: flex; flex-direction: column; gap: 1rem; }
+        
+        .dynamic-item {
+            position: relative;
+            background: var(--surface);
+            padding: 1rem;
+            border-radius: 0.5rem;
+            border: 1px dashed var(--border);
+        }
+
+        .btn-remove {
+            position: absolute;
+            top: 0.5rem;
+            right: 0.5rem;
+            background: #fee2e2;
+            color: var(--danger);
+            border: none;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.2s;
+        }
+        .btn-remove:hover { background: #fecaca; }
+
+        .btn-add {
+            background: transparent;
+            color: var(--primary);
+            border: 1px dashed var(--primary);
+            padding: 0.75rem;
+            border-radius: 0.5rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .btn-add:hover { background: rgba(37, 99, 235, 0.05); }
+
+        .tags-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            margin-top: 0.5rem;
+        }
+
+        .tag {
+            background: var(--primary);
+            color: white;
+            padding: 0.25rem 0.75rem;
+            border-radius: 1rem;
+            font-size: 0.875rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .tag span { cursor: pointer; }
+
+        .photo-upload {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .photo-preview {
+            width: 64px;
+            height: 64px;
+            border-radius: 50%;
+            background: var(--border);
+            object-fit: cover;
+            display: none;
+        }
+
+        /* Preview Area */
+        .preview-area {
+            flex: 1;
+            background: #cbd5e1; /* Escurecer um pouco o fundo para contraste */
+            padding: 2rem;
+            overflow-y: auto;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+        }
+
+        /* Virtual A4 Paper */
+        .a4-wrapper {
+            background: var(--cv-bg);
+            width: 794px; /* A4 width at 96 DPI */
+            min-height: 1123px; /* A4 height at 96 DPI */
+            box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+            transform-origin: top center;
+            font-family: var(--cv-font);
+            color: var(--cv-text);
+            position: relative;
+        }
+
+        /* ----- TEMPLATE STYLES ----- */
+        
+        /* Modern Template (Default) */
+        .a4-wrapper.theme-modern {
+            display: flex;
+        }
+        
+        .modern-left {
+            width: 35%;
+            background: var(--cv-primary);
+            color: white;
+            padding: 3rem 2rem;
+        }
+        
+        .modern-right {
+            width: 65%;
+            padding: 3rem 2.5rem;
+        }
+        
+        .cv-photo {
+            width: 150px;
+            height: 150px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 4px solid rgba(255,255,255,0.2);
+            margin: 0 auto 2rem;
+            display: block;
+        }
+        
+        .cv-name {
+            font-size: 2rem;
+            font-weight: 700;
+            line-height: 1.2;
+            margin-bottom: 0.5rem;
+            color: var(--cv-primary);
+        }
+        
+        .theme-modern .cv-name {
+            color: white;
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+        
+        .cv-contact {
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+            margin-bottom: 2rem;
+            font-size: 0.875rem;
+        }
+        
+        .cv-contact-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .cv-section-title {
+            font-size: 1.25rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            border-bottom: 2px solid var(--cv-secondary);
+            padding-bottom: 0.5rem;
+            margin-bottom: 1.5rem;
+            margin-top: 2rem;
+            color: var(--cv-primary);
+        }
+        
+        .theme-modern .modern-left .cv-section-title {
+            color: white;
+            border-color: rgba(255,255,255,0.3);
+            margin-top: 0;
+        }
+        
+        .cv-text {
+            line-height: 1.6;
+            font-size: 0.95rem;
+            margin-bottom: 1.5rem;
+        }
+        
+        .cv-item { margin-bottom: 1.5rem; }
+        .cv-item-title { font-weight: 700; font-size: 1.1rem; color: var(--cv-primary); }
+        .cv-item-subtitle { font-weight: 600; color: var(--cv-secondary); margin-bottom: 0.25rem; }
+        .cv-item-meta { font-size: 0.85rem; color: #64748b; margin-bottom: 0.5rem; font-style: italic; }
+        
+        .theme-modern .modern-left .cv-skill {
+            background: rgba(255,255,255,0.1);
+            padding: 0.4rem 0.8rem;
+            border-radius: 4px;
+            display: inline-block;
+            margin: 0.25rem;
+            font-size: 0.85rem;
+        }
+
+        /* Classic Template */
+        .a4-wrapper.theme-classic {
+            padding: 4rem;
+            display: block;
+        }
+        
+        .theme-classic .cv-header {
+            text-align: center;
+            border-bottom: 2px solid var(--cv-primary);
+            padding-bottom: 1.5rem;
+            margin-bottom: 2rem;
+        }
+        
+        .theme-classic .cv-photo {
+            width: 120px;
+            height: 120px;
+            margin: 0 auto 1.5rem;
+        }
+        
+        .theme-classic .cv-name {
+            font-size: 2.5rem;
+            color: var(--cv-primary);
+        }
+        
+        .theme-classic .cv-contact {
+            flex-direction: row;
+            justify-content: center;
+            flex-wrap: wrap;
+            gap: 1.5rem;
+            color: var(--cv-secondary);
+        }
+        
+        .theme-classic .cv-skills-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.75rem;
+        }
+        
+        .theme-classic .cv-skill {
+            border: 1px solid var(--cv-secondary);
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            color: var(--cv-text);
+        }
+
+        /* Responsive UI */
+        @media (max-width: 1024px) {
+            .main-content { flex-direction: column; }
+            .form-area, .preview-area { flex: none; width: 100%; height: 50vh; }
+            .a4-wrapper { transform-origin: top left; }
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-5px); }
+            75% { transform: translateX(5px); }
+        }
+        
+        /* Modal for PDF Generation */
+        .loading-overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(255,255,255,0.9);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+            flex-direction: column;
+            gap: 1rem;
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: var(--primary);
+        }
+        .spinner {
+            width: 40px; height: 40px;
+            border: 4px solid var(--border);
+            border-top-color: var(--primary);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin { 100% { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+
+    <div class="loading-overlay" id="loading">
+        <div class="spinner"></div>
+        <span>Gerando seu currículo em alta qualidade...</span>
+    </div>
+
+    <!-- HEADER -->
+    <header class="app-header">
+        <h1><i class="fa-solid fa-file-pdf"></i> ResumeGen Pro</h1>
+        <div class="actions">
+            <div class="theme-selector">
+                <button class="theme-btn" data-theme="classic">Clássico</button>
+                <button class="theme-btn active" data-theme="modern">Moderno</button>
+            </div>
+            <button class="btn-primary" id="btn-download">
+                <i class="fa-solid fa-download"></i> Baixar Currículo
+            </button>
+        </div>
+    </header>
+
+    <main class="main-content">
+        <!-- FORMULÁRIO -->
+        <section class="form-area" id="form-area">
+            <form id="cv-form" onsubmit="event.preventDefault();">
+                
+                <!-- DADOS PESSOAIS -->
+                <div class="form-section">
+                    <h2><i class="fa-solid fa-user"></i> Dados Pessoais</h2>
+                    <div class="form-grid">
+                        <div class="input-group full-width">
+                            <label>Foto de Perfil (Opcional)</label>
+                            <div class="photo-upload">
+                                <img src="" alt="Preview" class="photo-preview" id="photo-preview-img">
+                                <input type="file" id="photo-input" accept="image/*">
+                            </div>
+                        </div>
+                        <div class="input-group full-width">
+                            <label>Nome Completo *</label>
+                            <input type="text" id="name" required placeholder="Ex: João da Silva">
+                        </div>
+                        <div class="input-group">
+                            <label>E-mail *</label>
+                            <input type="email" id="email" required placeholder="joao@email.com">
+                        </div>
+                        <div class="input-group">
+                            <label>Telefone *</label>
+                            <input type="tel" id="phone" required placeholder="(11) 99999-9999">
+                        </div>
+                        <div class="input-group">
+                            <label>Cidade/Estado *</label>
+                            <input type="text" id="location" required placeholder="São Paulo, SP">
+                        </div>
+                        <div class="input-group">
+                            <label>LinkedIn / Portfólio</label>
+                            <input type="text" id="linkedin" placeholder="linkedin.com/in/joao">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- OBJETIVO -->
+                <div class="form-section">
+                    <h2><i class="fa-solid fa-bullseye"></i> Objetivo Profissional</h2>
+                    <div class="input-group">
+                        <textarea id="objective" placeholder="Descreva brevemente seus objetivos, perfil profissional e o que busca na carreira..."></textarea>
+                    </div>
+                </div>
+
+                <!-- EXPERIÊNCIA -->
+                <div class="form-section">
+                    <h2><i class="fa-solid fa-briefcase"></i> Experiência Profissional</h2>
+                    <div class="dynamic-list" id="exp-list"></div>
+                    <button type="button" class="btn-add full-width" style="margin-top: 1rem;" onclick="addExperience()">
+                        <i class="fa-solid fa-plus"></i> Adicionar Experiência
+                    </button>
+                </div>
+
+                <!-- FORMAÇÃO -->
+                <div class="form-section">
+                    <h2><i class="fa-solid fa-graduation-cap"></i> Formação Acadêmica</h2>
+                    <div class="dynamic-list" id="edu-list"></div>
+                    <button type="button" class="btn-add full-width" style="margin-top: 1rem;" onclick="addEducation()">
+                        <i class="fa-solid fa-plus"></i> Adicionar Formação
+                    </button>
+                </div>
+
+                <!-- HABILIDADES -->
+                <div class="form-section">
+                    <h2><i class="fa-solid fa-star"></i> Habilidades</h2>
+                    <div class="input-group">
+                        <label>Digite uma habilidade e pressione Enter</label>
+                        <input type="text" id="skill-input" placeholder="Ex: JavaScript, Liderança, Figma...">
+                        <div class="tags-container" id="skills-container"></div>
+                    </div>
+                </div>
+            </form>
+        </section>
+
+        <!-- PREVIEW -->
+        <section class="preview-area" id="preview-area">
+            <div class="a4-wrapper theme-modern" id="cv-preview">
+                <!-- Conteúdo renderizado dinamicamente via JS -->
+            </div>
+        </section>
+    </main>
+
+    <script>
+        // 1. STATE MANAGEMENT
+        let state = {
+            theme: 'modern',
+            photo: null,
+            personal: { name: '', email: '', phone: '', location: '', linkedin: '' },
+            objective: '',
+            experiences: [],
+            educations: [],
+            skills: []
+        };
+
+        // 2. INITIALIZATION
+        document.addEventListener('DOMContentLoaded', () => {
+            loadFromStorage();
+            setupScale();
+            window.addEventListener('resize', setupScale);
+            attachListeners();
+            renderAll();
+        });
+
+        // Responsiveness: Scale the A4 wrapper to fit the preview area
+        function setupScale() {
+            const previewArea = document.getElementById('preview-area');
+            const wrapper = document.getElementById('cv-preview');
+            // 794px is the fixed width. We calculate scale to fit parent width (minus padding).
+            const availableWidth = previewArea.clientWidth - 80;
+            const scale = Math.min(1, availableWidth / 794);
+            
+            wrapper.style.transform = `scale(${scale})`;
+            // Adjust margin to reclaim the scaled-down blank space
+            wrapper.style.marginBottom = `-${1123 * (1 - scale)}px`;
+            wrapper.style.marginRight = `-${794 * (1 - scale)}px`;
+        }
+
+        // 3. LISTENERS
+        function attachListeners() {
+            // Theme selection
+            document.querySelectorAll('.theme-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    document.querySelectorAll('.theme-btn').forEach(b => b.classList.remove('active'));
+                    e.target.classList.add('active');
+                    state.theme = e.target.dataset.theme;
+                    document.getElementById('cv-preview').className = `a4-wrapper theme-${state.theme}`;
+                    saveAndRender();
+                });
+            });
+
+            // Personal Data Inputs
+            const personalFields = ['name', 'email', 'phone', 'location', 'linkedin'];
+            personalFields.forEach(field => {
+                document.getElementById(field).addEventListener('input', (e) => {
+                    state.personal[field] = e.target.value;
+                    updatePreviewAndSave();
+                });
+            });
+
+            // Objective Input
+            document.getElementById('objective').addEventListener('input', (e) => {
+                state.objective = e.target.value;
+                updatePreviewAndSave();
+            });
+
+            // Skills Input (Intercept Enter Key)
+            const skillInput = document.getElementById('skill-input');
+            skillInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    const val = e.target.value.trim();
+                    if (val && !state.skills.includes(val)) {
+                        state.skills.push(val);
+                        e.target.value = '';
+                        saveAndRender();
+                    }
+                }
+            });
+
+            // Photo Upload
+            document.getElementById('photo-input').addEventListener('change', function(e) {
+                const file = e.target.files[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onload = function(event) {
+                        state.photo = event.target.result;
+                        saveAndRender();
+                    };
+                    reader.readAsDataURL(file);
+                }
+            });
+
+            // Trigger PDF Generation
+            document.getElementById('btn-download').addEventListener('click', generatePDF);
+        }
+
+        // 4. DYNAMIC DATA CRUD
+        function generateId() { return Date.now().toString(36) + Math.random().toString(36).substring(2); }
+
+        function addExperience() {
+            state.experiences.push({ id: generateId(), company: '', role: '', period: '', description: '' });
+            saveAndRender();
+        }
+        function updateExperience(id, field, value) {
+            const exp = state.experiences.find(e => e.id === id);
+            if (exp) { exp[field] = value; updatePreviewAndSave(); }
+        }
+        function removeExperience(id) {
+            state.experiences = state.experiences.filter(e => e.id !== id);
+            saveAndRender();
+        }
+
+        function addEducation() {
+            state.educations.push({ id: generateId(), course: '', inst: '', start: '', end: '' });
+            saveAndRender();
+        }
+        function updateEducation(id, field, value) {
+            const edu = state.educations.find(e => e.id === id);
+            if (edu) { edu[field] = value; updatePreviewAndSave(); }
+        }
+        function removeEducation(id) {
+            state.educations = state.educations.filter(e => e.id !== id);
+            saveAndRender();
+        }
+
+        function removeSkill(index) {
+            state.skills.splice(index, 1);
+            saveAndRender();
+        }
+
+        // 5. LOCAL STORAGE SYNC
+        function saveAndRender() {
+            localStorage.setItem('cv_state', JSON.stringify(state));
+            renderAll();
+        }
+
+        function updatePreviewAndSave() {
+            localStorage.setItem('cv_state', JSON.stringify(state));
+            renderPreview();
+        }
+
+        function loadFromStorage() {
+            const saved = localStorage.getItem('cv_state');
+            if (saved) {
+                try {
+                    state = JSON.parse(saved);
+                    // Sync UI Theme buttons with state
+                    document.querySelectorAll('.theme-btn').forEach(btn => {
+                        btn.classList.toggle('active', btn.dataset.theme === state.theme);
+                    });
+                    document.getElementById('cv-preview').className = `a4-wrapper theme-${state.theme}`;
+                } catch(e) { console.error('Error parsing storage'); }
+            } else {
+                // Initial defaults for an empty state
+                addExperience();
+                addEducation();
+            }
+        }
+
+        // 6. RENDER FUNCTIONS
+        function renderAll() {
+            renderFormInputs();
+            renderDynamicForms();
+            renderSkillsTags();
+            renderPreview();
+        }
+
+        // Fill form fields back from state (important on page load)
+        function renderFormInputs() {
+            document.getElementById('name').value = state.personal.name || '';
+            document.getElementById('email').value = state.personal.email || '';
+            document.getElementById('phone').value = state.personal.phone || '';
+            document.getElementById('location').value = state.personal.location || '';
+            document.getElementById('linkedin').value = state.personal.linkedin || '';
+            document.getElementById('objective').value = state.objective || '';
+            
+            const photoImg = document.getElementById('photo-preview-img');
+            if(state.photo) {
+                photoImg.src = state.photo;
+                photoImg.style.display = 'block';
+            } else {
+                photoImg.style.display = 'none';
+            }
+        }
+
+        function renderSkillsTags() {
+            const container = document.getElementById('skills-container');
+            container.innerHTML = state.skills.map((skill, index) => `
+                <div class="tag">
+                    ${skill}
+                    <span onclick="removeSkill(${index})"><i class="fa-solid fa-xmark"></i></span>
+                </div>
+            `).join('');
+        }
+
+        function renderDynamicForms() {
+            const expList = document.getElementById('exp-list');
+            expList.innerHTML = state.experiences.map(exp => `
+                <div class="dynamic-item">
+                    <button type="button" class="btn-remove" onclick="removeExperience('${exp.id}')" title="Remover"><i class="fa-solid fa-trash"></i></button>
+                    <div class="form-grid">
+                        <div class="input-group">
+                            <label>Cargo</label>
+                            <input type="text" value="${exp.role}" oninput="updateExperience('${exp.id}', 'role', this.value)" placeholder="Engenheiro de Software">
+                        </div>
+                        <div class="input-group">
+                            <label>Empresa</label>
+                            <input type="text" value="${exp.company}" oninput="updateExperience('${exp.id}', 'company', this.value)" placeholder="Tech Corp">
+                        </div>
+                        <div class="input-group full-width">
+                            <label>Período</label>
+                            <input type="text" value="${exp.period}" oninput="updateExperience('${exp.id}', 'period', this.value)" placeholder="Jan 2020 - Atual">
+                        </div>
+                        <div class="input-group full-width">
+                            <label>Descrição das Atividades</label>
+                            <textarea oninput="updateExperience('${exp.id}', 'description', this.value)" placeholder="Descreva os desafios e conquistas...">${exp.description}</textarea>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+
+            const eduList = document.getElementById('edu-list');
+            eduList.innerHTML = state.educations.map(edu => `
+                <div class="dynamic-item">
+                    <button type="button" class="btn-remove" onclick="removeEducation('${edu.id}')" title="Remover"><i class="fa-solid fa-trash"></i></button>
+                    <div class="form-grid">
+                        <div class="input-group">
+                            <label>Curso / Graduação</label>
+                            <input type="text" value="${edu.course}" oninput="updateEducation('${edu.id}', 'course', this.value)" placeholder="Ciência da Computação">
+                        </div>
+                        <div class="input-group">
+                            <label>Instituição</label>
+                            <input type="text" value="${edu.inst}" oninput="updateEducation('${edu.id}', 'inst', this.value)" placeholder="Universidade XYZ">
+                        </div>
+                        <div class="input-group">
+                            <label>Ano Início</label>
+                            <input type="text" value="${edu.start}" oninput="updateEducation('${edu.id}', 'start', this.value)" placeholder="2018">
+                        </div>
+                        <div class="input-group">
+                            <label>Ano Fim</label>
+                            <input type="text" value="${edu.end}" oninput="updateEducation('${edu.id}', 'end', this.value)" placeholder="2022">
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // Master function to map state -> virtual A4 paper
+        function renderPreview() {
+            const preview = document.getElementById('cv-preview');
+            
+            // Build Shared HTML Blocks
+            const contactHTML = `
+                <div class="cv-contact">
+                    ${state.personal.email ? `<div class="cv-contact-item"><i class="fa-solid fa-envelope"></i> ${state.personal.email}</div>` : ''}
+                    ${state.personal.phone ? `<div class="cv-contact-item"><i class="fa-solid fa-phone"></i> ${state.personal.phone}</div>` : ''}
+                    ${state.personal.location ? `<div class="cv-contact-item"><i class="fa-solid fa-location-dot"></i> ${state.personal.location}</div>` : ''}
+                    ${state.personal.linkedin ? `<div class="cv-contact-item"><i class="fa-brands fa-linkedin"></i> ${state.personal.linkedin}</div>` : ''}
+                </div>
+            `;
+
+            const skillsHTML = state.skills.length > 0 ? `
+                <div class="cv-section-title">Habilidades</div>
+                <div class="cv-skills-container">
+                    ${state.skills.map(s => `<span class="cv-skill">${s}</span>`).join('')}
+                </div>
+            ` : '';
+
+            const photoHTML = state.photo ? `<img src="${state.photo}" class="cv-photo">` : '';
+            const nameHTML = `<div class="cv-name">${state.personal.name || 'Seu Nome'}</div>`;
+
+            // Build Right Column (or Main Body for Classic)
+            const contentHTML = `
+                ${state.objective ? `
+                    <div class="cv-section-title">Objetivo Profissional</div>
+                    <div class="cv-text">${state.objective.replace(/\n/g, '<br>')}</div>
+                ` : ''}
+                
+                ${state.experiences.some(e => e.role || e.company) ? `
+                    <div class="cv-section-title">Experiência Profissional</div>
+                    ${state.experiences.filter(e => e.role || e.company).map(exp => `
+                        <div class="cv-item">
+                            <div class="cv-item-title">${exp.role}</div>
+                            <div class="cv-item-subtitle">${exp.company}</div>
+                            <div class="cv-item-meta">${exp.period}</div>
+                            <div class="cv-text">${exp.description.replace(/\n/g, '<br>')}</div>
+                        </div>
+                    `).join('')}
+                ` : ''}
+
+                ${state.educations.some(e => e.course || e.inst) ? `
+                    <div class="cv-section-title">Formação Acadêmica</div>
+                    ${state.educations.filter(e => e.course || e.inst).map(edu => `
+                        <div class="cv-item">
+                            <div class="cv-item-title">${edu.course}</div>
+                            <div class="cv-item-subtitle">${edu.inst}</div>
+                            <div class="cv-item-meta">${edu.start} - ${edu.end}</div>
+                        </div>
+                    `).join('')}
+                ` : ''}
+            `;
+
+            // Inject based on theme
+            if (state.theme === 'modern') {
+                preview.innerHTML = `
+                    <div class="modern-left">
+                        ${photoHTML}
+                        ${nameHTML}
+                        ${contactHTML}
+                        ${skillsHTML}
+                    </div>
+                    <div class="modern-right">
+                        ${contentHTML}
+                    </div>
+                `;
+            } else {
+                // Classic Theme Layout
+                preview.innerHTML = `
+                    <div class="cv-header">
+                        ${photoHTML}
+                        ${nameHTML}
+                        ${contactHTML}
+                    </div>
+                    <div class="cv-body">
+                        ${contentHTML}
+                        ${skillsHTML}
+                    </div>
+                `;
+            }
+        }
+
+        // 7. PDF EXPORT USING HTML2CANVAS & JSPDF
+        async function generatePDF() {
+            // Native HTML5 Form Validation
+            const form = document.getElementById('cv-form');
+            if(!form.checkValidity()) {
+                form.reportValidity();
+                return;
+            }
+
+            const wrapper = document.getElementById('cv-preview');
+            const loading = document.getElementById('loading');
+            
+            // UX: Show loading spinner
+            loading.style.display = 'flex';
+            
+            // Crucial: remove CSS transform scale before capturing to ensure high quality and correct bounds
+            const originalTransform = wrapper.style.transform;
+            const originalMarginBottom = wrapper.style.marginBottom;
+            const originalMarginRight = wrapper.style.marginRight;
+            
+            wrapper.style.transform = 'none';
+            wrapper.style.marginBottom = '0';
+            wrapper.style.marginRight = '0';
+
+            // Wait a tick for DOM to apply styles
+            await new Promise(r => setTimeout(r, 100));
+
+            try {
+                // Capture virtual A4 as image
+                const canvas = await html2canvas(wrapper, {
+                    scale: 2, // scale 2 ensures sharp text
+                    useCORS: true, // allows external images if any
+                    backgroundColor: state.theme === 'modern' ? '#ffffff' : '#ffffff'
+                });
+
+                const imgData = canvas.toDataURL('image/jpeg', 0.95);
+                
+                // Initialize jsPDF (portrait, millimeters, A4 size)
+                const { jsPDF } = window.jspdf;
+                const pdf = new jsPDF('p', 'mm', 'a4');
+                
+                // Add image (X=0, Y=0, Width=210mm, Height=297mm)
+                pdf.addImage(imgData, 'JPEG', 0, 0, 210, 297);
+                
+                // Generate safe filename from user's name
+                const safeName = (state.personal.name || 'curriculo')
+                    .normalize('NFD').replace(/[\u0300-\u036f]/g, "") // remove accents
+                    .replace(/[^a-z0-9]/gi, '_')
+                    .toLowerCase();
+                
+                pdf.save(`${safeName}_cv.pdf`);
+                
+            } catch (err) {
+                console.error('Erro na exportação:', err);
+                alert('Ocorreu um erro na exportação. Verifique o console.');
+            } finally {
+                // Restore the original CSS transform (scale)
+                wrapper.style.transform = originalTransform;
+                wrapper.style.marginBottom = originalMarginBottom;
+                wrapper.style.marginRight = originalMarginRight;
+                loading.style.display = 'none';
+            }
+        }
+    </script>
+</body>
+</html>
